@@ -13,7 +13,7 @@ declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
 
 /**
- * Test class for SimpleCache no strict no encryption.
+ * Test class for SimpleCacheRedis no strict no encryption.
  */
 // @codingStandardsIgnoreLine
 final class SimpleCacheRedisTest extends TestCase
@@ -54,7 +54,7 @@ final class SimpleCacheRedisTest extends TestCase
     {
         $test = $this->redis->ping();
         $this->assertEquals("+PONG", $test);
-    }//end testCanWeEvenAccessApcuFromTestEnvironment()
+    }//end testCanWeEvenAccessRedisFromTestEnvironment()
 
     /**
      * Cache test miss should return null, not false.

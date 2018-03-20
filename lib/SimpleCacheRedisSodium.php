@@ -2,27 +2,27 @@
 declare(strict_types=1);
 
 /**
- * An implementation of the PSR-16 SimpleCache Interface for Redis.
+ * An implementation of the PSR-16 SimpleCache Interface for Redis that uses AEAD
+ * cipher to encrypt the value in the cached key => value pair.
  *
  * @package AWonderPHP/SimpleCacheRedis
  * @author  Alice Wonder <paypal@domblogger.net>
  * @license https://opensource.org/licenses/MIT MIT
  * @link    https://github.com/AliceWonderMiscreations/SimpleCacheRedis
  */
- 
-// note to self https://www.linode.com/docs/databases/redis/install-and-configure-redis-on-centos-7/
 
 namespace AWonderPHP\SimpleCacheRedis;
 
 /**
- * An implementation of the PSR-16 SimpleCache Interface for Redis.
+ * An implementation of the PSR-16 SimpleCache Interface for APCu that uses AEAD
+ * cipher to encrypt the value in the cached key => value pair.
  *
  * This class implements the [PHP-FIG PSR-16](https://www.php-fig.org/psr/psr-16/)
  *  interface for a cache class.
  *
  * It needs PHP 7.1 or newer and obviously the [Redis PECL](https://pecl.php.net/package/redis) extension.
  */
-class SimpleCacheRedis extends \AWonderPHP\SimpleCache\SimpleCache implements \Psr\SimpleCache\CacheInterface
+class SimpleCacheRedisSodium extends \AWonderPHP\SimpleCache\SimpleCache implements \Psr\SimpleCache\CacheInterface
 {
     /**
      * @var null|\Redis The PECL Redis connector
@@ -48,7 +48,7 @@ class SimpleCacheRedis extends \AWonderPHP\SimpleCache\SimpleCache implements \P
     /**
      * A wrapper for the actual fetch from the cache.
      *
-     * @param string $realKey The internal key used with Redis.
+     * @param string $realKey The internal key used with APCu.
      * @param mixed  $default The value to return if a cache miss.
      *
      * @return mixed The value in the cached key => value pair, or $default if a cache miss.
@@ -62,18 +62,18 @@ class SimpleCacheRedis extends \AWonderPHP\SimpleCache\SimpleCache implements \P
         if ($serialized === false) {
             return $default;
         }
-        $value = unserialize($serialized);
-        return $value;
+        $obj = unserialize($serialized);
+        return $this->decryptData($obj, $default);
     }//end cacheFetch()
 
     /**
      * A wrapper for the actual store of key => value pair in the cache.
      *
-     * @param string                        $realKey The internal key used with Redis.
+     * @param string                        $realKey The internal key used with APCu.
      * @param mixed                         $value   The value to be stored.
      * @param null|int|string|\DateInterval $ttl     The TTL value of this item.
      *
-     * @return bool Returns True on success, False on failure.
+     * @return bool Returns True on success, False on failure
      */
     protected function cacheStore($realKey, $value, $ttl): bool
     {
@@ -81,7 +81,17 @@ class SimpleCacheRedis extends \AWonderPHP\SimpleCache\SimpleCache implements \P
             throw \AWonderPHP\SimpleCache\InvalidSetupException::nullRedis();
         }
         $seconds = $this->ttlToSeconds($ttl);
-        $serialized = serialize($value);
+        try {
+            $obj = $this->encryptData($value);
+        } catch (\AWonderPHP\SimpleCache\InvalidArgumentException $e) {
+            error_log($e->getMessage());
+            sodium_memzero($value);
+            return false;
+        }
+        $serialized = serialize($obj);
+        if (is_string($value)) {
+            sodium_memzero($value);
+        }
         // Redis does not treat 0 as forever
         if ($seconds > 0) {
             return $this->redis->set($realKey, $serialized, $seconds);
@@ -223,26 +233,102 @@ class SimpleCacheRedis extends \AWonderPHP\SimpleCache\SimpleCache implements \P
         }
         return false;
     }//end has()
+    
+    /**
+     * Zeros and then removes the cryptokey from a var_dump of the object.
+     * Also removes nonce from var_dump.
+     *
+     * @return array The array for var_dump().
+     */
+    public function __debugInfo()
+    {
+        $result = get_object_vars($this);
+        sodium_memzero($result['cryptokey']);
+        unset($result['cryptokey']);
+        unset($result['nonce']);
+        return $result;
+    }//end __debugInfo()
 
     /**
-     * Class constructor function. Takes four arguments, three with defaults.
+     * Zeros the cryptokey property on class destruction.
+     *
+     * @return void
+     */
+    public function __destruct()
+    {
+        sodium_memzero($this->cryptokey);
+    }//end __destruct()
+    
+    /**
+     * The class constructor function
      *
      * @param \Redis $redisObject  The Redis connection object.
+     * @param string $cryptokey    This can be the 32-byte key used for encrypting the value,
+     *                             a hex representation of that key, or a path to to a
+     *                             configuration file that contains the key.
+     * @param string $webappPrefix (optional) Sets the prefix to use for internal APCu key
+     *                             assignment. Useful to avoid key collisions between web
+     *                             applications (think of it like a namespace). String between
+     *                             3 and 32 characters in length containing only letters A-Z
+     *                             (NOT case sensitive) and numbers 0-9. Defaults to
+     *                             "Default".
+     * @param string $salt         (optional) A salt to use in the generation of the hash used
+     *                             as the internal APCu key. Must be at least eight characters
+     *                             long. There is a default salt that is used if you do not
+     *                             specify. Note that when you change the salt, all the
+     *                             internal keys change.
+     * @param bool   $strictType   (optional) When set to true, type is strictly enforced.
+     *                             When set to false (the default) an attempt is made to cast
+     *                             to the expected type.
      *
-     * @param string $webappPrefix (optional) Sets the prefix to use for internal APCu key assignment.
-     *                             Useful to avoid key collisions between web applications (think of
-     *                             it like a namespace). String between 3 and 32 characters in length
-     *                             containing only letters A-Z (NOT case sensitive) and numbers 0-9.
-     *                             Defaults to "Default".
-     * @param string $salt         (optional) A salt to use in the generation of the hash used as the
-     *                             internal APCu key. Must be at least eight characters long. There is
-     *                             a default salt that is used if you do not specify. Note that when
-     *                             you change the salt, all the internal keys change.
-     * @param bool   $strictType   (optional) When set to true, type is strictly enforced. When set to
-     *                             false (the default) an attempt is made to cast to the expected type.
+     * @psalm-suppress RedundantConditionGivenDocblockType
      */
-    public function __construct($redisObject, $webappPrefix = null, $salt = null, bool $strictType = false)
+    public function __construct($redisObject, $cryptokey, $webappPrefix = null, $salt = null, $strictType = null)
     {
+        $this->checkForSodium();
+        if (is_string($cryptokey)) {
+            $end = substr($cryptokey, -5);
+            $end = strtolower($end);
+            if ($end === ".json") {
+                $config = $this->readConfigurationFile($cryptokey);
+                sodium_memzero($cryptokey);
+            }
+        }
+        // use config file but override when argument passed to constructor not null
+        if (! isset($config)) {
+            $config = new \stdClass;
+        }
+        if (isset($config->hexkey)) {
+            $cryptokey = $config->hexkey;
+            sodium_memzero($config->hexkey);
+        } // else setCryptoKey should fail, will have to test...
+        if (is_null($webappPrefix)) {
+            if (isset($config->prefix)) {
+                $webappPrefix = $config->prefix;
+            }
+        }
+        if (is_null($salt)) {
+            if (isset($config->salt)) {
+                $salt = $config->salt;
+            }
+        }
+        if (! is_null($strictType)) {
+            if (! is_bool($strictType)) {
+                $strictType = true;
+            }
+        }
+        if (is_null($strictType)) {
+            if (isset($config->strict)) {
+                if (is_bool($config->strict)) {
+                    $strictType = $config->strict;
+                }
+            }
+        }
+        if (is_null($strictType)) {
+            $strictType = false;
+        }
+        $this->strictType = $strictType;
+        
         if ($this->setRedisObject($redisObject)) {
             $invalidTypes = array('array', 'object', 'boolean');
             if (! is_null($webappPrefix)) {
@@ -263,9 +349,9 @@ class SimpleCacheRedis extends \AWonderPHP\SimpleCache\SimpleCache implements \P
                 }
                 $this->setHashSalt($salt);
             }
-            $this->enabled = true;
+            $this->setCryptoKey($cryptokey);
         }
-        $this->strictType = $strictType;
+        sodium_memzero($cryptokey);
     }//end __construct()
 }//end class
 

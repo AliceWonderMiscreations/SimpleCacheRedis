@@ -222,13 +222,13 @@ class SimpleCacheRedis extends \AWonderPHP\SimpleCache\SimpleCache implements \P
         $key = $this->adjustKey($key);
         if ($this->enabled) {
             $rs = $this->redis->exists($key);
+            // pecl-redis 3.1.6 returns boolean
             if (is_bool($rs)) {
                 return $rs;
             }
-            if (is_int($rs)) {
-                if ($rs === 1) {
-                    return true;
-                }
+            // pecl-redis 4.0.0 return integer
+            if ($rs === 1) {
+                return true;
             }
         }
         return false;

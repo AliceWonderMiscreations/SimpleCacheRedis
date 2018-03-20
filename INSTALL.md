@@ -43,8 +43,8 @@ exception functions required by this class.
 
 Once those two dependencies are installed, there are two class files:
 
-1. [`SimpleCacheRedis`](blob/master/lib/SimpleCacheRedis.php)
-2. [`SimpleCacheRedisSodium`](blob/master/lib/SimpleCacheRedisSodium.php)
+1. [`SimpleCacheRedis`](lib/SimpleCacheRedis.php)
+2. [`SimpleCacheRedisSodium`](lib/SimpleCacheRedisSodium.php)
 
 The first class provides PSR-16 without encryption, the second provides PSR-16
 with encryption.

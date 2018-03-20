@@ -33,15 +33,17 @@ For simple cases where Redis is running on the same server, this usually works:
     $redis = new \Redis();
     $redis->connect('127.0.0.1', 6379);
 
-If you need more complexity than that, see the PECL class documentation.
+If you need more complexity than that, see the PECL class documentation. Once
+you have that object, you can create an instance of the `SimpleCacheRedis`
+class.
 
-The easiest way to create an object of the SimpleCacheRedis class:
+The easiest way to create an object of the `SimpleCacheRedis` class:
 
     use \AWonderPHP\SimpleCacheRedis\SimpleCacheRedis as SimpleCache;
     $CacheObj = new SimpleCache($redis);
 
 Note that the `$redis` argument is passed as the first argument to the
-constructorm, it is *required*.
+constructor, it is *required*.
 
 __**NOTE:**__ To use the encrytion enabled version of this class, use the class
 `SimpleCacheRedisSodium` instead of `SimpleCacheRedis`. Also, that variant of

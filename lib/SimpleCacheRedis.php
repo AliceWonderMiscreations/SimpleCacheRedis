@@ -41,6 +41,10 @@ class SimpleCacheRedis extends \AWonderPHP\SimpleCache\SimpleCache implements \P
         if (! $obj instanceof \Redis) {
             throw \AWonderPHP\SimpleCache\StrictTypeException::redisConnectorExpected($obj);
         }
+        $test = $obj->ping();
+        if ($test !== "+PONG") {
+            throw \AWonderPHP\SimpleCache\InvalidSetupException::pingNoPongRedis();
+        }
         $this->redis = $obj;
         return true;
     }//end setRedisObject()

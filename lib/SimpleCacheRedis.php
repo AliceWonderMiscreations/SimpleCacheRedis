@@ -210,6 +210,8 @@ class SimpleCacheRedis extends \AWonderPHP\SimpleCache\SimpleCache implements \P
      *
      * @param string $key The cache item key.
      *
+     * @psalm-suppress RedundantCondition
+     *
      * @return bool
      */
     public function has($key): bool
@@ -219,7 +221,15 @@ class SimpleCacheRedis extends \AWonderPHP\SimpleCache\SimpleCache implements \P
         }
         $key = $this->adjustKey($key);
         if ($this->enabled) {
-            return $this->redis->exists($key);
+            $rs = $this->redis->exists($key);
+            if (is_bool($rs)) {
+                return $rs;
+            }
+            if (is_int($rs)) {
+                if ($rs === 1) {
+                    return true;
+                }
+            }
         }
         return false;
     }//end has()

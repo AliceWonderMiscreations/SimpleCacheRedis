@@ -229,6 +229,17 @@ It returns a boolean type `TRUE` on success and `FALSE` on failure.
 
 If the `$ttl` parameter is not specified, the class default TTL will be used.
 
+#### Special TTL Note
+
+If you specify a TTL of `0` in the `set` function, thy `key => value` pair will
+be cached as long as possible.
+
+If you specify a TTL of `-1` in the `set` function and you have previously set
+the default TTL to at least 6000 seconds (100 minutes), then a random number of
+seconds between 0 and 15% of the default TTL will randomly be added or
+substracted to the default TTL and used. This is to allow staggering the cache
+expiration when you cache a lot of items at once, such as with cache warming.
+
 
 ### `$CacheObj->delete($key);`
 
@@ -284,6 +295,18 @@ the `key => value` pairs, this method does not support specifying a different
 TTL to use depending on the individual pair.
 
 This method returns a Boolean type `TRUE` on success and `FALSE` on failure.
+
+#### Special TTL Note
+
+If you specify a TTL of `0` in the `setMultiple` function, thy `key => value`
+pair will be cached as long as possible.
+
+If you specify a TTL of `-1` in the `setMultiple` function and you have
+previously set the default TTL to at least 6000 seconds (100 minutes), then a
+random number of seconds between 0 and 15% of the default TTL will randomly be
+added or substracted to the default TTL and used. This is to allow staggering
+the cache expiration when you cache a lot of items at once, such as with cache
+warming.
 
 
 ### `$CacheObj->deleteMultiple($keys);`

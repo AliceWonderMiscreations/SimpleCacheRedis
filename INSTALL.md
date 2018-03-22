@@ -17,7 +17,7 @@ If you want to use it in a project that is managed by
 `composer.json` file:
 
     "require": {
-        "awonderphp/simplecacheredis": "dev-master"
+        "awonderphp/simplecacheredis": "^1.0"
     },
 
 As long as your `composer.json` allows the [Packagist](https://packagist.org/)
@@ -37,9 +37,6 @@ your autoloader can find them first:
 
 Both of those libraries include exception classes that also must be installed
 where your autoloader can find them.
-
-For `AWonderPHP/SimpleCache` make sure to use the `devel` branch, it has some
-exception functions required by this class.
 
 Once those two dependencies are installed, there are two class files:
 

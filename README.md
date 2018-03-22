@@ -1,22 +1,6 @@
 SimpleCacheRedis
 ================
 
-An implementation of PSR-16 for Redis including encryption.
-
-This library extends
-[\AWonderPHP\SimpleCache\SimpleCache](https://github.com/AliceWonderMiscreations/SimpleCache)
-but requires the `devel` branch for updates to the exception classes.
-
-Once the `devel` branch of that project is merged into `master` and an official
-release is made, an official release of this library will be made. The current
-holdup, I am contemplating also creating a
-[memcached](https://www.memcached.org/) release and may need to make some
-additional tweaks to the exception classes for that as well.
-
-Though not tagged as an official release, this should be considered stable.
-
----------------------------------------------------------------------------
-
 This is an implementation of [PSR-16](https://www.php-fig.org/psr/psr-16/) for
 the Redis caching engine.
 

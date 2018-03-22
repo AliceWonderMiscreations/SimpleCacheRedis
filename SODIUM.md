@@ -251,7 +251,7 @@ I do not *believe* PHP caches the contents of files read with
 `file_get_contents()` (I could be wrong about that) so storing the secret key
 in a configuration file is safer.
 
-The class reads the file into a JSON string and then converts it an object.
+The class reads the file into a JSON string and then converts it to an object.
 The JSON string is then zeroed out using `sodium_memzero()` function.
 
 Once they key has been verified as an actual working key, the key is set as a

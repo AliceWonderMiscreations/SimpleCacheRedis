@@ -33,8 +33,9 @@ For simple cases where Redis is running on the same server, this usually works:
     $redis = new \Redis();
     $redis->connect('127.0.0.1', 6379);
 
-If you need more complexity than that, see the PECL class documentation. Once
-you have that object, you can create an instance of the `SimpleCacheRedis`
+If you need more complexity than that, see the
+[PECL Connection documentation](https://github.com/phpredis/phpredis/#connection).
+Once you have that object, you can create an instance of the `SimpleCacheRedis`
 class.
 
 The easiest way to create an object of the `SimpleCacheRedis` class:
@@ -338,8 +339,7 @@ This allows you to specify the default number of seconds to use for the TTL
 when it is not specified in the `set()` or `setMultiple()` methods.
 
 By default, the value is `0` which tells Redis to keep the `key => value`
-pair in cache until the server daemon is restarted or until the memory is
-needed for something else.
+pair in cache until you specifically replace it or specifically delete it.
 
 Personally I think that rarely is a good idea. Web applications _SHOULD_
 either delete the cached entry or update the cached entry when the data is
@@ -376,11 +376,13 @@ It is needed for unit testing.
 Exceptions
 ----------
 
-There are two conditions that can cause SimpleCacheRedis to intentionally throw
-an exception:
+There are three conditions that can cause SimpleCacheRedis to intentionally
+throw an exception:
 
 1. The data type used in a parameter is incorrect
 2. The data used in a parameter is not valid for use
+3. There is an issue connecting with the Redis server or if you are using the
+Sodium variant, there is an issue that will prevent encryption from working.
 
 ### Data Type Exceptions
 
@@ -424,7 +426,27 @@ In those circumstances, this class will throw a:
 
 Exception.
 
-You can catch these based on `InvalidArgumentException` or the PSR implementation.
+You can catch these based on `\InvalidArgumentException` or the PSR
+implementation.
+
+
+### Setup Exceptions
+
+Exceptions of this type only happen when either the class is not able to
+connect to the Redis server, you are using the Sodium variant and do not have
+the libsodium functions available, you specified a JSON configuration file that
+does not exist or is invalid, your encryption key is not valid, or something is
+broken resulting in the encryption nonce not being properly incremented.
+
+In those circumstances, this class will throw a:
+
+    \AWonderPHP\SimpleCache\InvalidSetupException
+        extends \ErrorException
+        implements \Psr\SimpleCache\CacheException
+
+Exception.
+
+You can catch these based on `\ErrorException` or the PSR implementation.
 
 
 ### About Catching Exceptions

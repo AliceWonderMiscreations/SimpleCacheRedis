@@ -1,0 +1,160 @@
+#!/usr/bin/env php
+<?php
+declare(strict_types=1);
+
+/**
+ * Utility for generating SimpleCacheRedisSodium configuration file.
+ *
+ * @package AWonderPHP/SimpleCacheRedis
+ * @author  Alice Wonder <paypal@domblogger.net>
+ * @license https://opensource.org/licenses/MIT MIT
+ * @link    https://github.com/AliceWonderMiscreations/SimpleCacheRedis
+ */
+
+$PREFIX="DEFAULT";
+$STRICT_TYPE=false;
+
+/**
+ * Part of my silly amusement described below.
+ *
+ * @param string $s a hex digit to convert to pseudo-upper case.
+ *
+ * @return string
+ */
+function fancy_strtoupper($s)
+{
+    switch ($s) {
+        case "0":
+            return "#";
+        case "1":
+            return "?";
+        case "2":
+            return "@";
+        case "3":
+            return "(";
+        case "4":
+            return ")";
+        case "5":
+            return "z";
+        case "6":
+            return "Q";
+        case "7":
+            return "%";
+        case "8":
+            return "!";
+        case "9":
+            return ";";
+        default:
+            return strtoupper($s);
+    }
+}//end fancy_strtoupper()
+
+
+if (! $CWD = getcwd()) {
+    exit(1);
+}
+
+if (isset($argv[1])) {
+    $str = $argv[1];
+    $str = (string)$str;
+    $str = strtoupper(trim($str));
+    if (strlen($str) < 3) {
+        echo "WebApp Prefix must be three characters or longer.";
+        exit(1);
+    }
+    if (strlen($str) > 32) {
+        echo "WebApp Prefix can not be more than 32 characters in length.";
+        exit(1);
+    }
+    if (preg_match('/[^A-Z0-9]/', $str) !== 0) {
+        echo "WebApp Prefix can only contain [A-Z] and [0-9].";
+        exit(1);
+    }
+    $PREFIX = $str;
+}
+
+if (isset($argv[2])) {
+    $str = $argv[2];
+    $str = (string)$str;
+    $str = strtoupper(trim($str));
+    if ($str === "1") {
+        $STRICT_TYPE = true;
+    } elseif ($str === "TRUE") {
+        $STRICT_TYPE = true;
+    }
+}
+
+$arr = array();
+
+// The secret - 32 byte int - valid for both chacha20poly1305 and aes256gcm
+$secret = random_bytes(32);
+
+if (function_exists('sodium_bin2hex')) {
+    $arr['hexkey'] = sodium_bin2hex($secret);
+} else {
+    $arr['hexkey'] = bin2hex($secret);
+}
+if (function_exists('sodium_memzero')) {
+    sodium_memzero($secret);
+}
+
+// The prefix
+$arr['prefix'] = $PREFIX;
+
+// generate ourselves a salt
+
+//  what I do here amuses me more than has actual
+//  benefit - The salt isn't used for cryto.
+//
+// But hey, it amused me.
+$rand = random_bytes(32);
+if (function_exists('sodium_bin2hex')) {
+    $salt = sodium_bin2hex($rand);
+} else {
+    $salt = bin2hex($rand);
+}
+// just because we can, really don't need to
+$j = random_int(7, 27);
+for ($i=0; $i<$j; $i++) {
+    $salt = str_shuffle($salt);
+}
+// again just because we can
+for ($i=0; $i<64; $i++) {
+    $n = random_int(0, 1);
+    if ($n === 1) {
+        $salt[$i] = fancy_strtoupper($salt[$i]);
+    }
+}
+$arr['salt'] = $salt;
+// okay end of silly amusement.
+
+$arr['strict'] = $STRICT_TYPE;
+
+
+
+$file = $CWD . '/' . $PREFIX . '.json';
+
+if (file_exists($file)) {
+    $backup = $CWD . '/' . $PREFIX . '-' . time() . '.json';
+    if (! copy($file, $backup)) {
+        echo "Could not create backup of existing file. Exiting now\n";
+        exit(1);
+    }
+    unlink($file);
+}
+$json = json_encode($arr, JSON_PRETTY_PRINT) . "\n";
+
+if (! $handle = @fopen($file, 'w')) {
+    echo "Could not open " . $file . " for writing. Exiting now\n";
+    exit(1);
+}
+fwrite($handle, $json);
+fclose($handle);
+if (function_exists('sodium_memzero')) {
+    sodium_memzero($json);
+    sodium_memzero($arr['hexkey']);
+}
+
+echo "Configuration file generated: " . $file . "\n";
+
+?>
